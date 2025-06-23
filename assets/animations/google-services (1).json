@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "848367698963",
+    "project_id": "finansia-aa3bb",
+    "storage_bucket": "finansia-aa3bb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:848367698963:android:358c471fbea39c04916be6",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "848367698963-2ante9q2cpdmomv5n33st1tvkvosdsdi.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB87eBq8Z4FIfqROR2l9y7VI7VZt-fkjkw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "848367698963-2ante9q2cpdmomv5n33st1tvkvosdsdi.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "848367698963-dslitafi8v62jerp669anq13v6gpmkut.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.finansia"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:848367698963:android:5f2fac7082dbf737916be6",
+        "android_client_info": {
+          "package_name": "com.myapp.finansia"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "848367698963-2ante9q2cpdmomv5n33st1tvkvosdsdi.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB87eBq8Z4FIfqROR2l9y7VI7VZt-fkjkw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "848367698963-2ante9q2cpdmomv5n33st1tvkvosdsdi.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "848367698963-dslitafi8v62jerp669anq13v6gpmkut.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.finansia"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
