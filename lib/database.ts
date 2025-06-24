@@ -99,22 +99,26 @@ export const getTransactionsForMonth = async (
   return data;
 };
 
-export const getTransactionsForDateRange = async (userId: string, startDate: Date, endDate: Date): Promise<Transaction[] | null> => {
-    // Set jam pada endDate ke akhir hari untuk memastikan semua transaksi di hari itu terambil
-    endDate.setHours(23, 59, 59, 999);
+export const getTransactionsForDateRange = async (
+  userId: string,
+  startDate: Date,
+  endDate: Date
+): Promise<Transaction[] | null> => {
+  // Set jam pada endDate ke akhir hari untuk memastikan semua transaksi di hari itu terambil
+  endDate.setHours(23, 59, 59, 999);
 
-    const { data, error } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', userId)
-        .gte('created_at', startDate.toISOString())
-        .lte('created_at', endDate.toISOString());
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("*")
+    .eq("user_id", userId)
+    .gte("created_at", startDate.toISOString())
+    .lte("created_at", endDate.toISOString());
 
-    if (error) {
-        console.error('Error fetching transactions for date range:', error);
-        throw new Error(error.message);
-    }
-    return data;
+  if (error) {
+    console.error("Error fetching transactions for date range:", error);
+    throw new Error(error.message);
+  }
+  return data;
 };
 
 // --- Fungsi Budget ---
@@ -284,3 +288,23 @@ export async function getSpentAmountForCategory(
   const totalSpent = data.reduce((sum, current) => sum + current.amount, 0);
   return totalSpent;
 }
+
+
+export const getDailySummaryForMonth = async (userId: string, year: number, month: number) => {
+    const { data, error } = await supabase.rpc('get_daily_summary_for_month', {
+        p_user_id: userId,
+        p_year: year,
+        p_month: month,
+    });
+    if (error) throw new Error(error.message);
+    return data;
+};
+
+export const getSummaryLastNMonths = async (userId: string, months: number) => {
+    const { data, error } = await supabase.rpc('get_summary_last_n_months', {
+        p_user_id: userId,
+        n_months: months,
+    });
+    if (error) throw new Error(error.message);
+    return data;
+};

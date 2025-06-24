@@ -211,29 +211,6 @@ export default function HomeScreen() {
 
   const balance = totalIncome - totalExpense;
 
-  const [insight, setInsight] = useState<string | null>(null);
-
-    const generateInsights = (transactions: Transaction[], income: number, expense: number) => {
-        // Logika 1: Proyeksi Pengeluaran
-        const today = new Date();
-        const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-        const dayOfMonth = today.getDate();
-        
-        if (dayOfMonth > 5 && expense > 0) { // Hanya jalankan jika sudah cukup data bulan ini
-            const avgDailyExpense = expense / dayOfMonth;
-            const projectedExpense = avgDailyExpense * daysInMonth;
-            
-            return `Berdasarkan tren saat ini, proyeksi pengeluaran Anda bulan ini adalah sekitar ${new Intl.NumberFormat('id-ID', {style:'currency', currency:'IDR'}).format(projectedExpense)}.`;
-        }
-        
-        // Logika 2: Saran menabung
-        if (income > expense) {
-            const savings = income - expense;
-            return `Anda hemat ${new Intl.NumberFormat('id-ID', {style:'currency', currency:'IDR'}).format(savings)} bulan ini. Pertimbangkan untuk memasukkannya ke tabungan impian Anda!`;
-        }
-
-        return "Catat terus transaksimu untuk mendapatkan saran cerdas.";
-    };
 
 
   const loadDashboardData = useCallback(async () => {
@@ -383,8 +360,6 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
-
-        {insight && <InsightCard text={insight} />}
       </ScrollView>
     </SafeAreaView>
   );
