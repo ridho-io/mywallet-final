@@ -19,8 +19,8 @@ export const Colors = {
     tabIconSelected: primaryColor,
     card: 'rgba(255, 255, 255, 0.3)', // Warna dasar untuk efek kaca
     cardBorder: 'rgba(255, 255, 255, 0.3)',
-    danger: '#FF2929',
-    success: '#6BFFB8'
+    danger: '#FE4F2D',
+    success: '#16FF00'
   },
 
 };

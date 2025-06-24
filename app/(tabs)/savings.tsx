@@ -16,8 +16,13 @@ import {
 import AddContributionModal from "../../components/specific/AddContributionModal";
 import CreateGoalModal from "../../components/specific/CreateGoalModal";
 import { useAuth } from "../../contexts/AuthContext";
-import { getSavingGoals, SavingGoal } from "../../lib/database";
+import {
+  getSavingGoals,
+  deleteSavingGoal,
+  SavingGoal,
+} from "../../lib/database";
 import { LinearGradient } from "expo-linear-gradient";
+import EditGoalModal from "@/components/specific/EditGoalModal";
 
 const SavingGoalCard = ({
   goal,
@@ -69,36 +74,32 @@ const SavingGoalCard = ({
 };
 
 export default function SavingsScreen() {
-  const { session } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const { session, setGlobalLoading, isGlobalLoading } = useAuth();
   const [goals, setGoals] = useState<SavingGoal[]>([]);
-
   const [isCreateModalVisible, setCreateModalVisible] = useState(false);
   const [isContributeModalVisible, setContributeModalVisible] = useState(false);
+  const [isEditModalVisible, setEditModalVisible] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<SavingGoal | null>(null);
 
   const fetchData = async () => {
-    if (!session?.user) return setLoading(false);
-    setLoading(true);
+    if (!session?.user) return;
+    setGlobalLoading(true, "Memuat Tabungan...");
     try {
       const data = await getSavingGoals(session.user.id);
       if (data) setGoals(data);
     } catch (error: any) {
       Alert.alert("Error", error.message);
     } finally {
-      setLoading(false);
+      setGlobalLoading(false);
     }
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchData();
-    }, [session])
-  );
+  useFocusEffect(useCallback(() => { fetchData(); }, [session]));
 
   const handleSuccess = () => {
     setCreateModalVisible(false);
     setContributeModalVisible(false);
+    setEditModalVisible(false);
     setSelectedGoal(null);
     fetchData(); // Refresh data
   };
@@ -108,58 +109,92 @@ export default function SavingsScreen() {
     setContributeModalVisible(true);
   };
 
+  const handleDeleteGoal = (goalId: string) => {
+    Alert.alert(
+      "Hapus Impian",
+      "Menghapus impian ini tidak akan menghapus riwayat transaksi kontribusi Anda. Lanjutkan?",
+      [
+        { text: "Batal", style: "cancel" },
+        {
+          text: "Hapus",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteSavingGoal(goalId);
+              Alert.alert("Sukses", "Impian telah dihapus.");
+              fetchData();
+            } catch (error: any) {
+              Alert.alert("Error", error.message);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleLongPress = (goal: SavingGoal) => {
+    setSelectedGoal(goal);
+    Alert.alert(
+      `Aksi untuk "${goal.goal_name}"`,
+      "Pilih aksi yang diinginkan",
+      [
+        {
+          text: "Batal",
+          style: "cancel",
+          onPress: () => setSelectedGoal(null),
+        },
+        {
+          text: "Hapus",
+          style: "destructive",
+          onPress: () => handleDeleteGoal(goal.id),
+        },
+        { text: "Edit", onPress: () => setEditModalVisible(true) },
+        {
+          text: "Tambah Tabungan",
+          onPress: () => setContributeModalVisible(true),
+        },
+      ]
+    );
+  };
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <LinearGradient colors={['#4A90E2', '#0ABAB5']} style={StyleSheet.absoluteFill} />
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Saving & Goals</Text>
-        <Pressable
-          onPress={() => setCreateModalVisible(true)}
-          style={styles.addButton}
-        >
-          <Ionicons name="add" size={24} color="#fff" />
-        </Pressable>
-      </View>
-
-      {loading ? (
-        <ActivityIndicator
-          style={{ marginTop: 50 }}
-          size="large"
-          color={Colors.light.tint}
-        />
-      ) : (
-        <FlatList
-          data={goals}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <SavingGoalCard
-              goal={item}
-              onContributePress={() => openContributeModal(item)}
-            />
-          )}
-          contentContainerStyle={styles.list}
-          ListEmptyComponent={
-            <View style={styles.center}>
-              <Text style={styles.emptyText}>
-                Start creating your first saving goal!
-              </Text>
+    <>
+        <SafeAreaView style={styles.safeArea}>
+            <LinearGradient colors={['#4A90E2', '#0ABAB5']} style={StyleSheet.absoluteFill} />
+            <View style={styles.header}>
+                <Text style={styles.headerTitle}>Saving & Goals</Text>
+                <Pressable onPress={() => setCreateModalVisible(true)} style={styles.addButton}>
+                <Ionicons name="add" size={24} color="#fff" />
+                </Pressable>
             </View>
-          }
-        />
-      )}
 
-      <CreateGoalModal
-        visible={isCreateModalVisible}
-        onClose={() => setCreateModalVisible(false)}
-        onSuccess={handleSuccess}
-      />
-      <AddContributionModal
-        visible={isContributeModalVisible}
-        onClose={() => setContributeModalVisible(false)}
-        onSuccess={handleSuccess}
-        goal={selectedGoal}
-      />
-    </SafeAreaView>
+            <FlatList
+                data={goals}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                    <Pressable onLongPress={() => handleLongPress(item)} onPress={() => openContributeModal(item)}>
+                        <SavingGoalCard
+                          goal={item}
+                          onContributePress={() => openContributeModal(item)}
+                        />
+                    </Pressable>
+                )}
+                contentContainerStyle={styles.list}
+                ListEmptyComponent={
+                !isGlobalLoading ? (
+                    <View style={styles.center}>
+                        <Text style={styles.emptyText}>Buat impian pertamamu!</Text>
+                    </View>
+                ) : null
+                }
+            />
+        </SafeAreaView>
+
+        {/* ... (Semua modal tidak berubah) ... */}
+        <CreateGoalModal visible={isCreateModalVisible} onClose={() => setCreateModalVisible(false)} onSuccess={handleSuccess} />
+        <AddContributionModal visible={isContributeModalVisible} onClose={() => setContributeModalVisible(false)} onSuccess={handleSuccess} goal={selectedGoal} />
+        <EditGoalModal visible={isEditModalVisible} onClose={() => setEditModalVisible(false)} onSuccess={handleSuccess} goalToEdit={selectedGoal} />
+    </>
   );
 }
 

@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
-  ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   SafeAreaView,
@@ -13,12 +13,13 @@ import {
   View,
 } from "react-native";
 import AddTransactionModal from "../../components/specific/AddTransactionModal";
+import EditTransactionModal from "../../components/specific/EditTransactionModal"; // Import modal edit
 import { useAuth } from "../../contexts/AuthContext";
-import { getTransactions, Transaction } from "../../lib/database";
+import { getTransactions, deleteTransaction, Transaction } from "../../lib/database";
 import { LinearGradient } from "expo-linear-gradient";
-import { rgbaColor } from "react-native-reanimated/lib/typescript/Colors";
+import { MotiView, useAnimationState } from "moti";
 
-// Komponen TransactionItem dengan UI BARU
+// Komponen TransactionItem tetap sama, hanya akan dibungkus Pressable di FlatList
 const TransactionItem = ({ item }: { item: Transaction }) => {
   const getIconInfo = (category: string) => {
     const cat = category.toLowerCase();
@@ -88,85 +89,153 @@ const TransactionItem = ({ item }: { item: Transaction }) => {
 };
 
 export default function TransactionsScreen() {
-  // === LOGIKA ASLI DARI REPOSITORY ANDA DIKEMBALIKAN ===
-  const { session } = useAuth();
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-
+  const { session, setGlobalLoading } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [isModalVisible, setModalVisible] = useState(false);
+  
+  // State untuk modal
+  const [isAddModalVisible, setAddModalVisible] = useState(false);
+  const [isEditModalVisible, setEditModalVisible] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+
+  // Animation state for screen scaling and shifting down when modal opens/closes
+  const screenAnimationState = useAnimationState({
+    default: {
+      scale: 1,
+      translateY: 0,
+    },
+    modalOpen: {
+      scale: 0.98,
+      translateY: 10,
+    },
+  });
+
+  const handleOpenAddModal = () => {
+    screenAnimationState.transitionTo('modalOpen');
+    setAddModalVisible(true);
+  };
+
+  const handleCloseAddModal = () => {
+    screenAnimationState.transitionTo('default');
+    setAddModalVisible(false);
+  };
+
+  const handleOpenEditModal = () => {
+    screenAnimationState.transitionTo('modalOpen');
+    setEditModalVisible(true);
+  };
+
+  const handleCloseEditModal = () => {
+    screenAnimationState.transitionTo('default');
+    setEditModalVisible(false);
+    setSelectedTransaction(null);
+  };
 
   const PAGE_SIZE = 20;
 
   const fetchTxs = async (currentPage: number, isInitialLoad = false) => {
-    if (!session?.user) return;
-    // Guard untuk mencegah fetch jika sudah tidak ada data lagi (kecuali initial load)
-    if (!hasMore && !isInitialLoad) return;
+    if (!session?.user || (!hasMore && !isInitialLoad)) return;
 
-    if (currentPage > 0) setLoadingMore(true);
-    else setLoading(true);
+    if (isInitialLoad) {
+      setGlobalLoading(true, "Memuat Transaksi...");
+    } else {
+      setLoadingMore(true);
+    }
 
     try {
-      const data = await getTransactions(
-        session.user.id,
-        currentPage,
-        PAGE_SIZE
-      );
-
+      const data = await getTransactions(session.user.id, currentPage, PAGE_SIZE);
       if (data) {
-        setTransactions((prev) =>
-          currentPage === 0 ? data : [...prev, ...data]
-        );
+        setTransactions(prev => currentPage === 0 ? data : [...prev, ...data]);
         if (data.length < PAGE_SIZE) {
           setHasMore(false);
         }
       }
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      Alert.alert("Error", error.message);
     } finally {
-      setLoading(false);
-      setLoadingMore(false);
+      if (isInitialLoad) {
+        setGlobalLoading(false);
+      } else {
+        setLoadingMore(false);
+      }
     }
   };
+
+  const handleRefresh = useCallback(() => {
+    setPage(0);
+    setHasMore(true);
+    setTransactions([]);
+    fetchTxs(0, true);
+  }, [session]);
+
+  useFocusEffect(handleRefresh);
 
   const loadMoreItems = () => {
     if (!loadingMore && hasMore) {
       const nextPage = page + 1;
       setPage(nextPage);
-      fetchTxs(nextPage);
+      fetchTxs(nextPage, false);
     }
   };
-
-  const handleRefresh = () => {
-    setPage(0);
-    setHasMore(true);
-    fetchTxs(0, true);
+  
+  const handleDeleteTransaction = (transactionId: string) => {
+    Alert.alert(
+      "Hapus Transaksi",
+      "Apakah Anda yakin ingin menghapus transaksi ini?",
+      [
+        { text: "Batal", style: "cancel" },
+        {
+          text: "Hapus",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteTransaction(transactionId);
+              Alert.alert("Sukses", "Transaksi telah dihapus.");
+              handleRefresh(); // Muat ulang data
+            } catch (error: any) {
+              Alert.alert("Error", error.message);
+            }
+          },
+        },
+      ]
+    );
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      handleRefresh();
-    }, [session])
-  );
-
-  const handleSuccessAdd = () => {
-    setModalVisible(false);
-    handleRefresh();
+  const handleLongPress = (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    Alert.alert(
+      "Aksi",
+      `Pilih aksi untuk transaksi "${transaction.category}"`,
+      [
+        { text: "Batal", style: "cancel" },
+        {
+          text: "Hapus",
+          style: "destructive",
+          onPress: () => handleDeleteTransaction(transaction.id!),
+        },
+        {
+          text: "Edit",
+          onPress: handleOpenEditModal,
+        },
+      ]
+    );
   };
-  // === AKHIR DARI LOGIKA ASLI ===
-
-  // Tampilan JSX menggunakan UI BARU
+  
   return (
+    <>
+    <LinearGradient colors={['#4A90E2', '#0ABAB5']} style={StyleSheet.absoluteFill} />
+    <MotiView 
+        state={screenAnimationState} 
+        style={styles.container}
+        transition={{ type: 'timing', duration: 550 }}
+      >
     <SafeAreaView style={styles.safeArea}>
-      <LinearGradient colors={['#4A90E2', '#0ABAB5']} style={StyleSheet.absoluteFill} />
       <View style={styles.header}>
         <Text style={styles.headerTitle}>History</Text>
-        <Pressable
-          onPress={() => setModalVisible(true)}
-          style={styles.addButton}
-        >
+        <Pressable onPress={handleOpenAddModal} style={styles.addButton}>
           <Ionicons name="add" size={24} color="#fff" />
         </Pressable>
       </View>
@@ -174,42 +243,48 @@ export default function TransactionsScreen() {
       <FlatList
         data={transactions}
         keyExtractor={(item) => item.id!}
-        renderItem={({ item }) => <TransactionItem item={item} />}
+        renderItem={({ item }) => (
+          <Pressable onLongPress={() => handleLongPress(item)}>
+            <TransactionItem item={item} />
+          </Pressable>
+        )}
         contentContainerStyle={styles.list}
-        // Menggunakan bug fix dari sebelumnya yang cocok dengan logika asli Anda
-        onEndReached={hasMore ? loadMoreItems : null}
+        onEndReached={loadMoreItems}
         onEndReachedThreshold={0.5}
         onRefresh={handleRefresh}
         refreshing={loading && transactions.length === 0}
-        ListFooterComponent={
-          loadingMore ? (
-            <ActivityIndicator
-              style={{ marginVertical: 20 }}
-              color={Colors.light.tint}
-            />
-          ) : null
-        }
-        ListEmptyComponent={
-          !loading ? (
-            <View style={styles.center}>
-              <Text style={styles.emptyText}>Belum ada transaksi.</Text>
-            </View>
-          ) : null
-        }
-      />
-
-      <AddTransactionModal
-        visible={isModalVisible}
-        onClose={() => setModalVisible(false)}
-        onSuccess={handleSuccessAdd}
       />
     </SafeAreaView>
+    </MotiView>
+
+      <AddTransactionModal
+        visible={isAddModalVisible}
+        onClose={handleCloseAddModal}
+        onSuccess={() => {
+          handleCloseAddModal();
+          handleRefresh();
+        }}
+      />
+      
+      <EditTransactionModal
+        visible={isEditModalVisible}
+        onClose={handleCloseEditModal}
+        onSuccess={() => {
+          handleCloseEditModal();
+          handleRefresh();
+        }}
+        transaction={selectedTransaction}
+      />
+    </>
   );
 }
 
-// Stylesheet untuk UI BARU
+// Stylesheet tidak berubah
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Colors.light.background },
+  container: {
+    flex: 1,
+  },
+  safeArea: { flex: 1, borderRadius: 30, overflow: 'hidden' },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -235,7 +310,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 50,
   },
-  emptyText: { color: Colors.light.icon, fontSize: 16},
+  emptyText: { color: Colors.light.white, fontSize: 16},
   transactionItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -261,10 +336,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: Colors.light.text,
+    textTransform: 'capitalize',
   },
   transactionDate: {
     fontSize: 14,
-    color: Colors.light.white,
+    color: 'rgba(255,255,255,0.8)',
     marginTop: 2,
   },
   transactionAmount: {

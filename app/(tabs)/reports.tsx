@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
       color: 'white',
     },
     card: {
-      backgroundColor: Colors.light.white,
+      backgroundColor: Colors.light.background,
       borderRadius: 20,
       padding: 20,
       marginBottom: 20,
@@ -371,7 +371,7 @@ const styles = StyleSheet.create({
     summaryCardContainer: {
         flexDirection: 'row',
         justifyContent: 'space-around',
-        backgroundColor: Colors.light.white,
+        backgroundColor: Colors.light.background,
         borderRadius: 20,
         padding: 20,
         marginBottom: 20,

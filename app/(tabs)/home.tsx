@@ -2,7 +2,7 @@
 import { Colors } from "@/constants/Colors";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import { MotiView } from "moti";
+import { MotiText, MotiView } from "moti";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -16,9 +16,10 @@ import {
   View,
 } from "react-native";
 import { useAuth } from "../../contexts/AuthContext";
-import { getTransactionsForMonth, Transaction } from "../../lib/database";
+import { getTransactionsForMonth, Transaction, setBudget } from "../../lib/database";
 import { LinearGradient } from "expo-linear-gradient";
 import LottieView from "lottie-react-native";
+import { supabase } from "@/lib/supabase";
 
 // Komponen untuk item transaksi
 const TransactionItem = ({ item }: { item: Transaction }) => {
@@ -44,7 +45,7 @@ const TransactionItem = ({ item }: { item: Transaction }) => {
       cat.includes("salary") ||
       item.type === "income"
     )
-      return { name: "wallet", color: Colors.light.success };
+      return { name: "wallet", color: Colors.light.secondary };
     return { name: "cash", color: Colors.light.icon };
   };
 
@@ -115,7 +116,6 @@ const MiniBarChart = ({ data }: { data: Transaction[] }) => {
         );
 
         if (diffDays >= 0 && diffDays < 7) {
-          const dayIndex = (today.getDay() - diffDays + 7) % 7;
           const correctIndexInArray = 6 - diffDays;
           if (dailyTotals[correctIndexInArray]) {
             dailyTotals[correctIndexInArray].total += tx.amount;
@@ -154,8 +154,15 @@ const MiniBarChart = ({ data }: { data: Transaction[] }) => {
   );
 };
 
+const InsightCard = ({ text }: { text: string }) => (
+    <View style={styles.insightCard}>
+        <Ionicons name="bulb-outline" size={24} color="#F5A623" />
+        <Text style={styles.insightText}>{text}</Text>
+    </View>
+);
+
 export default function HomeScreen() {
-  const { session } = useAuth();
+  const { session, setGlobalLoading } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -164,66 +171,125 @@ export default function HomeScreen() {
   const [totalExpense, setTotalExpense] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
+  const runOnboarding = async () => {
+    if (!session?.user) return;
+
+    console.log("Menjalankan proses onboarding untuk pengguna baru...");
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1; // 1-12
+    const userId = session.user.id;
+    
+    // Buat beberapa budget default
+    const defaultBudgets = [
+      { category: 'Makanan', amount: 0 },
+      { category: 'Transportasi', amount: 0 },
+      { category: 'Hiburan', amount: 0 },
+      { category: 'Tagihan', amount: 0 },
+    ];
+
+    try {
+      for (const budget of defaultBudgets) {
+        await setBudget({
+          user_id: userId,
+          category: budget.category,
+          amount: budget.amount,
+          year: year,
+          month: month,
+        });
+      }
+      
+      // Setelah selesai, perbarui metadata pengguna
+      await supabase.auth.updateUser({ data: { is_new_user: false } });
+      console.log("Onboarding selesai. Metadata pengguna diperbarui.");
+
+    } catch (error) {
+      console.error("Gagal saat proses onboarding:", error);
+    }
+  };
+
   const balance = totalIncome - totalExpense;
 
-  const loadDashboardData = async () => {
+  const [insight, setInsight] = useState<string | null>(null);
+
+    const generateInsights = (transactions: Transaction[], income: number, expense: number) => {
+        // Logika 1: Proyeksi Pengeluaran
+        const today = new Date();
+        const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+        const dayOfMonth = today.getDate();
+        
+        if (dayOfMonth > 5 && expense > 0) { // Hanya jalankan jika sudah cukup data bulan ini
+            const avgDailyExpense = expense / dayOfMonth;
+            const projectedExpense = avgDailyExpense * daysInMonth;
+            
+            return `Berdasarkan tren saat ini, proyeksi pengeluaran Anda bulan ini adalah sekitar ${new Intl.NumberFormat('id-ID', {style:'currency', currency:'IDR'}).format(projectedExpense)}.`;
+        }
+        
+        // Logika 2: Saran menabung
+        if (income > expense) {
+            const savings = income - expense;
+            return `Anda hemat ${new Intl.NumberFormat('id-ID', {style:'currency', currency:'IDR'}).format(savings)} bulan ini. Pertimbangkan untuk memasukkannya ke tabungan impian Anda!`;
+        }
+
+        return "Catat terus transaksimu untuk mendapatkan saran cerdas.";
+    };
+
+
+  const loadDashboardData = useCallback(async () => {
     if (!session?.user) return;
 
     try {
       const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth();
-
-      const monthlyTxs = await getTransactionsForMonth(
-        session.user.id,
-        year,
-        month
-      );
+      const monthlyTxs = await getTransactionsForMonth(session.user.id, now.getFullYear(), now.getMonth());
 
       if (monthlyTxs) {
         let income = 0;
         let expense = 0;
-
-        monthlyTxs.forEach((tx) => {
-          if (tx.type === "income") income += tx.amount;
-          else expense += tx.amount;
-        });
-
+        monthlyTxs.forEach(tx => tx.type === 'income' ? income += tx.amount : expense += tx.amount);
         setTotalIncome(income);
         setTotalExpense(expense);
-        setTransactions(
-          [...monthlyTxs].sort(
-            (a, b) =>
-              new Date(b.created_at!).getTime() -
-              new Date(a.created_at!).getTime()
-          )
-        );
+        setTransactions([...monthlyTxs].sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime()));
       }
     } catch (error) {
-      console.error("Failed to load dashboard data:", error);
+      console.error("Gagal memuat data dasbor:", error);
     }
-  };
+  }, [session]);
 
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      loadDashboardData().finally(() => setLoading(false));
-    }, [session])
+      const loadData = async () => {
+        if (session) {
+          setGlobalLoading(true, "Memuat Dasbor..."); // <-- TAMPILKAN LOADING
+          try {
+            if (session.user.user_metadata?.is_new_user) {
+              await runOnboarding();
+            }
+            await loadDashboardData();
+          } catch (error) {
+            console.error(error);
+          } finally {
+            setGlobalLoading(false); // <-- SELALU SEMBUNYIKAN LOADING
+          }
+        }
+      };
+      loadData();
+    }, [session, loadDashboardData])
   );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadDashboardData();
     setRefreshing(false);
-  }, [session]);
+  }, [session, loadDashboardData]);
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={Colors.light.tint} />
-      </View>
-    );
-  }
+  // if (loading) {
+  //   return (
+  //     <View style={styles.center}>
+  //       <ActivityIndicator size="large" color={Colors.light.tint} />
+  //     </View>
+  //   );
+  // }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -239,16 +305,21 @@ export default function HomeScreen() {
         }
       >
         {/* Header */}
-        <LinearGradient colors={['#4A90E2', '#ffff']} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={['#4A90E2', Colors.light.background, Colors.light.background]} style={StyleSheet.absoluteFill} />
         <View style={styles.header}>
           <Text style={styles.headerTitle}>
             Hi, {session?.user?.email?.split("@")[0] || "User"}
           </Text>
         </View>
 
+
         {/* Balance Card */}
         <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>Your balance</Text>
+          <MotiText
+            from={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
           <Text style={styles.balanceAmount}>
             {new Intl.NumberFormat("id-ID", {
               style: "currency",
@@ -256,12 +327,13 @@ export default function HomeScreen() {
               minimumFractionDigits: 0,
             }).format(balance)}
           </Text>
+          </MotiText>
           <View style={styles.divider} />
           <View style={styles.incomeExpenseContainer}>
             <View style={styles.incomeExpenseBox}>
               <Ionicons
                 name="arrow-down-circle"
-                size={18}
+                size={25}
                 color={Colors.light.success}
               />
               <Text style={styles.incomeExpenseText}>
@@ -271,7 +343,7 @@ export default function HomeScreen() {
             <View style={styles.incomeExpenseBox}>
               <Ionicons
                 name="arrow-up-circle"
-                size={18}
+                size={25}
                 color={Colors.light.danger}
               />
               <Text style={styles.incomeExpenseText}>
@@ -292,6 +364,7 @@ export default function HomeScreen() {
           <MiniBarChart data={transactions} />
         </View>
 
+
         {/* Recent Transactions */}
         <View style={styles.transactionsSection}>
           <View style={styles.cardHeader}>
@@ -310,6 +383,8 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
+
+        {insight && <InsightCard text={insight} />}
       </ScrollView>
     </SafeAreaView>
   );
@@ -340,7 +415,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between"
   },
   card: {
-    backgroundColor: Colors.light.white,
+    backgroundColor: Colors.light.background,
     borderTopLeftRadius: 50,
     borderTopRightRadius: 50,
     paddingVertical: 40,
@@ -409,7 +484,7 @@ const styles = StyleSheet.create({
   },
   barLabel: { fontSize: 12, color: Colors.light.icon },
   transactionsSection: { 
-    backgroundColor: Colors.light.white,
+    backgroundColor: Colors.light.background,
     padding: 30
   },
   transactionItem: {
@@ -440,4 +515,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   emptyText: { textAlign: "center", color: Colors.light.icon, fontSize: 16 },
+
+  insightCard: {
+        backgroundColor: '#2C2C2E',
+        borderRadius: 15,
+        padding: 15,
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginHorizontal: 20,
+        marginBottom: 20,
+        marginTop: 10,
+        gap: 10,
+    },
+    insightText: {
+        color: 'white',
+        flex: 1,
+        fontSize: 14,
+        lineHeight: 20,
+    }
 });

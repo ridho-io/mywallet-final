@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { Colors } from '@/constants/Colors';
+import GlobalLoadingModal from '@/components/core/GlobalLoadingModal';
 
 const InitialLayout = () => {
   const { session, loading } = useAuth();
@@ -38,7 +39,18 @@ const InitialLayout = () => {
 export default function RootLayout() {
   return (
     <AuthProvider>
-      <InitialLayout />
+      <RootLayoutNav />
     </AuthProvider>
+  );
+}
+
+function RootLayoutNav() {
+  const { isGlobalLoading, loadingMessage } = useAuth(); // Ambil state loading dari context
+
+  return (
+    <>
+      <InitialLayout />
+      <GlobalLoadingModal visible={isGlobalLoading} message={loadingMessage} />
+    </>
   );
 }

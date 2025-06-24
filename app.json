@@ -8,6 +8,7 @@
     "scheme": "mywallet",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "author":"Ridho Pranata",
     "ios": {
       "supportsTablet": true
     },
@@ -34,7 +35,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true
@@ -43,7 +45,8 @@
       "router": {},
       "eas": {
         "projectId": "51d61648-a14f-4799-ae9f-2e6231fb1a09"
-      }
+      },
+      "author": "Ridho Pranata"
     },
     "owner": "ridho_13"
   }

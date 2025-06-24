@@ -16,7 +16,7 @@ const BudgetCard = ({ category, budgetAmount, spentAmount }: BudgetCardProps) =>
   const getProgressColor = () => {
     if (progress > 90) return Colors.light.danger;
     if (progress > 70) return '#F5A623'; // Orange
-    return Colors.light.success;
+    return Colors.light.secondary;
   };
 
   return (

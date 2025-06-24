@@ -5,7 +5,6 @@ import { Link, useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import AnimatedButton from '../components/core/AnimatedButton';
 import { Colors } from '@/constants/Colors';
-import { Ionicons } from '@expo/vector-icons';
 import LottieView from 'lottie-react-native';
 
 export default function RegisterScreen() {
@@ -17,22 +16,39 @@ export default function RegisterScreen() {
 
   const handleSignUp = async () => {
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match.');
+      Alert.alert('Error', 'Passwords tidak cocok.');
       return;
     }
     setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
+
+    // Mendaftar pengguna baru
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
       email: email,
       password: password,
     });
 
-    setLoading(false);
-    if (error) {
-      Alert.alert('Registration Error', error.message);
-    } else if (data.session === null && data.user) {
+    if (signUpError) {
+      setLoading(false);
+      Alert.alert('Error Pendaftaran', signUpError.message);
+      return;
+    }
+
+    if (signUpData.user) {
+      // --- BAGIAN BARU: Tandai sebagai pengguna baru ---
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { is_new_user: true } 
+      });
+
+      if (updateError) {
+        console.warn("Gagal menandai pengguna baru:", updateError.message);
+        // Tetap lanjutkan meskipun gagal, ini bukan error kritis
+      }
+      // --- AKHIR BAGIAN BARU ---
+
+      setLoading(false);
       Alert.alert(
-        'Registration Successful',
-        'Please check your email for verification before logging in.',
+        'Pendaftaran Berhasil',
+        'Silakan periksa email Anda untuk verifikasi sebelum login.',
         [{ text: 'OK', onPress: () => router.replace('/login') }]
       );
     }
@@ -44,52 +60,48 @@ export default function RegisterScreen() {
 
             <LottieView source={require('../assets/animations/finance.json')} autoPlay loop style={styles.lottie} />
             
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Start managing your finance today!</Text>
+            <Text style={styles.title}>Buat Akun</Text>
+            <Text style={styles.subtitle}>Mulai kelola keuanganmu hari ini!</Text>
 
             <View style={styles.form}>
                 <TextInput
-                style={styles.input}
-                placeholder="Email Address"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                placeholderTextColor={Colors.light.icon}
+                    style={styles.input}
+                    placeholder="Alamat Email"
+                    value={email}
+                    onChangeText={setEmail}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    placeholderTextColor={Colors.light.icon}
                 />
                 <TextInput
-                style={styles.input}
-                placeholder="Password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                placeholderTextColor={Colors.light.icon}
+                    style={styles.input}
+                    placeholder="Password"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry
+                    placeholderTextColor={Colors.light.icon}
                 />
                 <TextInput
-                style={styles.input}
-                placeholder="Confirm Password"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-                placeholderTextColor={Colors.light.icon}
+                    style={styles.input}
+                    placeholder="Konfirmasi Password"
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry
+                    placeholderTextColor={Colors.light.icon}
                 />
                 <View style={{height: 20}}/>
                 <AnimatedButton onPress={handleSignUp}>
                     <View style={styles.button}>
-                        {loading ? (
-                            <ActivityIndicator color="#fff" />
-                        ) : (
-                            <Text style={styles.buttonText}>Sign Up</Text>
-                        )}
+                        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Daftar</Text>}
                     </View>
                 </AnimatedButton>
             </View>
 
             <View style={styles.footer}>
-                <Text style={styles.footerText}>Already have an account? </Text>
+                <Text style={styles.footerText}>Sudah punya akun? </Text>
                 <Link href="/login" asChild>
                     <Pressable>
-                        <Text style={styles.link}>Log in</Text>
+                        <Text style={styles.link}>Masuk</Text>
                     </Pressable>
                 </Link>
             </View>
@@ -98,19 +110,13 @@ export default function RegisterScreen() {
   );
 }
 
-// Menggunakan style yang sama dengan login
+// ... Styles tidak berubah
 const styles = StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
     container: {
         flexGrow: 1,
         justifyContent: 'center',
         padding: 24,
-    },
-    backButton: {
-        position: 'absolute',
-        top: 20,
-        left: 20,
-        padding: 10,
     },
     lottie: {
     width: 330,
