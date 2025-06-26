@@ -7,8 +7,8 @@ import {
   Alert, Linking, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View,
 } from "react-native";
 import Constants from 'expo-constants'; // Import Constants
-import { useAuth } from "../../contexts/AuthContext";
-import { supabase } from "../../lib/supabase";
+import { useAuth } from "../contexts/AuthContext";
+import { supabase } from "../lib/supabase";
 import { LinearGradient } from "expo-linear-gradient";
 import AiAssistantModal from "@/components/specific/AiAssistantModal";
 

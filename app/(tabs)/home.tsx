@@ -20,6 +20,8 @@ import { getTransactionsForMonth, Transaction, setBudget } from "../../lib/datab
 import { LinearGradient } from "expo-linear-gradient";
 import LottieView from "lottie-react-native";
 import { supabase } from "@/lib/supabase";
+import AiAssistantModal from "@/components/specific/AiAssistantModal";
+import ProfileModal from "@/components/specific/ProfileModal";
 
 // Komponen untuk item transaksi
 const TransactionItem = ({ item }: { item: Transaction }) => {
@@ -170,6 +172,8 @@ export default function HomeScreen() {
   const [totalIncome, setTotalIncome] = useState(0);
   const [totalExpense, setTotalExpense] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isAiModalVisible, setAiModalVisible] = useState(false);
+  const [isProfileModalVisible, setProfileModalVisible] = useState(false);
 
   const runOnboarding = async () => {
     if (!session?.user) return;
@@ -269,6 +273,7 @@ export default function HomeScreen() {
   // }
 
   return (
+    <>
     <SafeAreaView style={styles.safeArea}>
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -284,9 +289,20 @@ export default function HomeScreen() {
         {/* Header */}
         <LinearGradient colors={['#4A90E2', Colors.light.background, Colors.light.background]} style={StyleSheet.absoluteFill} />
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>
-            Hi, {session?.user?.email?.split("@")[0] || "User"}
+          <Pressable onPress={() => setProfileModalVisible(true)} style={{ flex: 2 }}>
+            <Ionicons name="person-circle" size={50} color={Colors.light.white} />
+          </Pressable>
+          <Text style={styles.informationCard}>
+            
           </Text>
+          <Pressable onPress={() => setAiModalVisible(true)} style={{ flex: 2 }}>
+            <LottieView
+              source={require("../../assets/animations/ai.json")}
+              autoPlay
+              loop
+              style={{ width: 60, height: 60 }}
+            />
+          </Pressable>
         </View>
 
 
@@ -305,9 +321,10 @@ export default function HomeScreen() {
             }).format(balance)}
           </Text>
           </MotiText>
-          <View style={styles.divider} />
-          <View style={styles.incomeExpenseContainer}>
-            <View style={styles.incomeExpenseBox}>
+        </View>
+
+        <View style={styles.incomeExpenseCard}>
+            <View style={[styles.incomeExpenseBox, {flex: 3}]}>
               <Ionicons
                 name="arrow-down-circle"
                 size={25}
@@ -317,7 +334,8 @@ export default function HomeScreen() {
                 Rp {new Intl.NumberFormat("id-ID").format(totalIncome)}
               </Text>
             </View>
-            <View style={styles.incomeExpenseBox}>
+            <View style={styles.divider} />
+            <View style={[styles.incomeExpenseBox, {flex: 3}]}>
               <Ionicons
                 name="arrow-up-circle"
                 size={25}
@@ -327,7 +345,6 @@ export default function HomeScreen() {
                 Rp {new Intl.NumberFormat("id-ID").format(totalExpense)}
               </Text>
             </View>
-          </View>
         </View>
 
         {/* Weekly Expense Chart Card */}
@@ -362,6 +379,15 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
     </SafeAreaView>
+    <AiAssistantModal 
+      visible={isAiModalVisible}
+      onClose={() => setAiModalVisible(false)}
+    />
+    <ProfileModal 
+      visible={isProfileModalVisible}
+      onClose={() => setProfileModalVisible(false)}
+    />
+    </>
   );
 }
 
@@ -378,16 +404,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
+    paddingHorizontal: 15,
     paddingTop: 30,
-    paddingBottom: 30,
     top: 0,
   },
-  headerTitle: {
+  informationCard: {
+    flex: 10,
     fontSize: 28,
     fontWeight: "bold",
     color: Colors.light.text,
-    justifyContent: "space-between"
+    textAlign: "center",
   },
   card: {
     backgroundColor: Colors.light.background,
@@ -402,7 +428,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   balanceCard: { alignItems: "flex-start", marginBottom: 20, paddingHorizontal: 20, paddingVertical: 20 },
-  balanceLabel: { fontSize: 16, color: "rgba(255, 255, 255, 0.8)" },
+  balanceLabel: { fontSize: 16, marginBottom: 20, color: "rgba(255, 255, 255, 0.8)" },
   balanceAmount: {
     fontSize: 36,
     fontWeight: "bold",
@@ -410,17 +436,22 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   divider: {
-    height: 2,
-    width: "100%",
-    backgroundColor: `${Colors.light.secondary}70`,
-    
-    marginTop: 15,
+    width: 2,
+    height: "100%",
+    backgroundColor: Colors.light.white,
   },
-  incomeExpenseContainer: {
+  incomeExpenseCard: {
+    flex: 1,
     flexDirection: "row",
-    gap: 16,
-    marginTop: 10,
-    paddingTop: 15,
+    justifyContent: "space-between",
+    backgroundColor: Colors.light.tint,
+    borderRadius: 20,
+    padding: 10,
+    paddingHorizontal: 15,
+    marginBottom: -20,
+    marginHorizontal: 30,
+    zIndex: 99,
+    gap: 5
   },
   incomeExpenseBox: { flexDirection: "row", alignItems: "center", gap: 6 },
   incomeExpenseText: {
